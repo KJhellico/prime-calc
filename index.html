@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='utf-8'>
+    <title>Venus Prime APR calculation</title>
+    <script src='https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js'></script>
+</head>
+
+<style>
+    body {
+        font-family: Tahoma, sans-serif;
+        font-size: 14px;
+    }
+</style>
+
+<body>
+    <form>
+        <p>
+            <label>Wallet (optional): <input type='text' id='walletAddr' size='40'/></label>
+        </p>
+        <p>
+            <label>XVS staked <input type='text' id='xvsStaked' size='20' value='1000' /></label>
+        </p>
+        <p>
+            <label>Token</label>
+            <select name='tokens' id='selToken'>
+			<option value='BTC'>BTC</option>
+			<option value='ETH'>ETH</option>
+			<option value='USDT'>USDT</option>
+			<option value='USDC'>USDC</option>
+			</select>
+        </p>
+        <p>
+            <label>Supply <input type='text' id='tokenSupply' size='20' value="0" /></label>
+        </p>
+        <p>
+            <label>Borrow <input type='text' id='tokenBorrow' size='20' value="0" /></label>
+        </p>
+        <p>
+            <button type='button' onclick='javascript:calculate()'>Calculate</button>
+        </p>
+        <p>
+            <label>Supply APR </label>
+            <label id="supplyAPR">-</label>%
+        </p>
+        <p>
+            <label>Borrow APR </label>
+            <label id="borrowAPR">-</label>%
+        </p>
+    </form>
+
+    <script type='text/javascript'>
+        const provider = new Web3.providers.HttpProvider('https://bsc-dataseed.binance.org');
+        const web3 = new Web3(provider);
+        const decimals = 10**18;
+
+		const primeAbi = [{'inputs':[{'internalType':'address','name':'market','type':'address'},{'internalType':'address','name':'user','type':'address'},{'internalType':'uint256','name':'borrow','type':'uint256'},{'internalType':'uint256','name':'supply','type':'uint256'},{'internalType':'uint256','name':'xvsStaked','type':'uint256'}],'name':'estimateAPR','outputs':[{'internalType':'uint256','name':'supplyAPR','type':'uint256'},{'internalType':'uint256','name':'borrowAPR','type':'uint256'}],'stateMutability':'view','type':'function'}];
+		
+        const vTokens = {
+			'USDC': '0xeca88125a5adbe82614ffc12d0db554e2e2867c8',
+			'USDT': '0xfd5840cd36d94d7229439859c0112a4185bc0255',
+			'BTC': '0x882c173bc7ff3b7786ca16dfed3dfffb9ee7847b',
+			'ETH': '0xf508fcd89b8bd15579dc79a6827cb4686a3592c8'
+		};
+		const primeAddr = '0xBbCD063efE506c3D42a0Fa2dB5C08430288C71FC';
+        const primeContract = new web3.eth.Contract(primeAbi, primeAddr);
+
+        function formatNum(num, n = 2) {
+            let result = '';
+            if (num == 0) result = '0'
+            else if (num < 0.0001) result = '<0.0001'
+            else result = num.toFixed(n).toString();
+            return result;
+        }
+
+        async function calculate() {
+			let selToken = document.getElementById('selToken');
+			let token = selToken.options[selToken.selectedIndex].text;
+			let vToken = vTokens[token];
+		
+            let walletAddr = document.getElementById('walletAddr').value;
+			if (walletAddr == '') {
+				walletAddr = '0x0000000000000000000000000000000000000000';
+			};
+			let xvsStaked = document.getElementById('xvsStaked').value;
+			if (xvsStaked == '') {
+				xvsStaked = 0;
+			};
+			let supply = document.getElementById('tokenSupply').value;
+			if (supply == '') {
+				supply = 0;
+			};
+			let borrow = document.getElementById('tokenBorrow').value;
+			if (borrow == '') {
+				borrow = 0;
+			};
+			xvsStaked = xvsStaked * decimals;
+			supply = supply * decimals;
+			borrow = borrow * decimals;
+            let supplyAPR = 0;
+            let borrowAPR = 0;
+            try {
+				res = await primeContract.methods.estimateAPR(vToken, walletAddr, borrow, supply, xvsStaked).call();
+            } catch (err) { }
+            supplyAPR = res.supplyAPR;
+			borrowAPR = res.borrowAPR;
+			document.getElementById('supplyAPR').innerText = formatNum(Number(supplyAPR) / 100);
+            document.getElementById('borrowAPR').innerText = formatNum(Number(borrowAPR) / 100);
+        }
+
+    </script>
+</body>
+</html>
